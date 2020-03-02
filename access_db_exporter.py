@@ -23,7 +23,7 @@ class automation():
     @property
     def form_modules(self):
 
-        def p_form_modules(index): #### Try without the DEF at some point.
+        def p_form_modules(index):
             return self.forms(index).Module
         
         return p_form_modules
