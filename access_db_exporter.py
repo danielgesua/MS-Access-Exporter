@@ -59,20 +59,28 @@ class automation():
             def _mine_the_object_data(obj_name):
                 '''gets the necessary data from the object'''
 
+                def _has_or_is_module(obj_name):
+                    '''returns the value of HasModule for form objects or true for module objects'''
+                    return self.forms(obj_name).HasModule if is_form else True
+
                 def _get_module_code(module):
                     '''obtains the code contained inside a module and returns it as a string'''
                     return module.Lines(1,module.CountOfLines)
 
                 def _get_module_type(module):
                     '''obtains the type of module and returns the int that represents it'''
-                    return 2 if is_form else module.Type
+                    return 2 if (is_form and _has_or_is_module(obj_name)) else module.Type
 
                 def _corrected_object_name(name):
                     '''corrects the name based on type'''
                     return 'Form_' + name if is_form else name
-
-                code = _get_module_code(obj_list(obj_name))
-                module_type=_get_module_type(obj_list(obj_name))
+                
+                if _has_or_is_module(obj_name):
+                    code = _get_module_code(obj_list(obj_name))
+                    module_type = _get_module_type(obj_list(obj_name))  
+                else:
+                    code = None
+                    module_type = 2
                 name = _corrected_object_name(obj_name)
                 self._module_data += [(name,module_type,code)]
               
