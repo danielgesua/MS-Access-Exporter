@@ -30,6 +30,15 @@ class ms_access_automation():
         
         return p_form_modules
 
+    @property
+    def query_names(self):
+        self._query_names = [query.Name for query in self.ac.CurrentData.AllQueries] if self._query_names is None else self._query_names
+        return self._query_names
+
+    @property
+    def query_defs(self):
+        return self.ac.CurrentDb().QueryDefs
+
     def run(self,displaying_prompts = True):
         '''runs the automation'''
         
@@ -97,18 +106,31 @@ class ms_access_automation():
             #if displaying prompts then add one new line between the prompts of this portion and the next.
             if displaying_prompts: print('\n',end='')
 
+        def _get_all_query_obj_data():
+            '''place all query names, and sql inside a list of tuples.'''
+
+            for query_name in self.query_names:
+                sql = self.query_defs[query_name].SQL
+                self._query_data += [(query_name,sql)]
+
         def _display_prompts():
             '''prints console prompts to show the developer what was mined'''
 
-            for name,module_type,code in self._module_data:
-                print('Name: ' + name)
+            for module_num,(name,module_type,code) in enumerate(self._module_data):
+                print('Module #' + str(module_num + 1) + ': ' + name)
                 print('Type: ' + str(module_type))
                 code = 'Code: No code.' if code is None else 'Code: Obtained!'
-                print(code + '\n')
+                print(code,end = '\n\n')
+
+            for query_index, query_name in enumerate(self.query_names): 
+                print('Query #' + str(query_index + 1) + ': ' + query_name)
+                sql = 'SQL: Empty QueryDef.' if self.query_defs[query_name].SQL is None else 'SQL: Obtained!'
+                print(sql,end = '\n\n')
 
         _open_access_file()
         _get_all_module_obj_data(self.module_names,self.modules,is_form=False)
         _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
+        _get_all_query_obj_data()
         if displaying_prompts: _display_prompts()
 
     def __init__(self):
@@ -117,8 +139,10 @@ class ms_access_automation():
         self.ac = None
         self._module_names = None
         self._form_names = None
+        self._query_names = None
         self._form_modules = None
-        self._module_data=[]
+        self._module_data = []
+        self._query_data = []
 
     def __del__(self):
         self.ac.CloseCurrentDatabase()
@@ -133,30 +157,65 @@ class file_export_automation():
     def run(self):
         '''takes all the modules in the python list of an ms_access_automation object and exports them as files'''
         
-        def _ensure_exports_directory_exists():
-            '''if the exports directory doesn't exist, it creates it'''
+        def _ensure_directories_exist():
+            '''creates all the necessary export directories and subdirectories if they do not exist'''
 
-            def _export_directory_exists():
-                '''checks to see if the git_exports directory exists and returns true or false.'''
-                self.export_directory_path = os.path.join(project_directory_path,'git_exports')
-                return os.path.exists(path = self.export_directory_path)
+            def _ensure_exports_directory_exists():
+                '''if the exports directory doesn't exist, it creates it'''
 
-            if not _export_directory_exists():
-                os.mkdir(path = self.export_directory_path)
+                def _export_directory_exists():
+                    '''checks to see if the git_exports directory exists and returns true or false.'''
+                    self._export_directory_path = os.path.join(project_directory_path,'git_exports')
+                    return os.path.exists(path = self._export_directory_path)
+
+                if not _export_directory_exists(): os.mkdir(path = self._export_directory_path)
+
+            def _ensure_modules_directory_exists():
+                '''if the modules subdirectory doesn't exist, it creates it'''
+
+                def _modules_directory_exists():
+                    '''checks to see if the git_exports directory exists and returns true or false.'''
+                    self._modules_directory_path = os.path.join(self._export_directory_path,'modules')
+                    return os.path.exists(path = self._modules_directory_path)
+
+                if not _modules_directory_exists(): os.mkdir(path = self._modules_directory_path)
+
+            def _ensure_queries_directory_exists():
+                '''if the queries subdirectory doesn't exist, it creates it'''
+
+                def _queries_directory_exists():
+                    '''checks to see if the queries subdirectory exists and returns true or false.'''
+                    self._queries_directory_path = os.path.join(self._export_directory_path,'queries')
+                    return os.path.exists(path = self._queries_directory_path)
+
+                if not _queries_directory_exists(): os.mkdir(path = self._queries_directory_path)
+
+            _ensure_exports_directory_exists()
+            _ensure_modules_directory_exists()
+            _ensure_queries_directory_exists()
 
         def _save_all_modules():
-            '''saves all the modules in with the correct extension in the exports directory'''
+            '''saves all the modules with the correct extension in the modules sub directory of the exports directory'''
 
             for (file_name,module_type,code) in self._module_data:
                 if code is not None:
                     file_extension = self._file_ext_definitions[module_type]
-                    full_name = os.path.join(self.export_directory_path, file_name + file_extension)
+                    full_name = os.path.join(self._modules_directory_path, file_name + file_extension)
                     with open(file = full_name, mode = 'w') as file:
                         file.write(code)
 
+        def _save_all_queries():
+            '''saves all the queries' sql in text format in the queries sub directory of the exports directory'''
+
+            for (file_name,sql) in self._query_data:
+                full_name = os.path.join(self._queries_directory_path,file_name + '.txt')
+                with open(file = full_name,mode = 'w') as file:
+                    file.write(sql)
+
         project_directory_path = os.path.abspath(os.path.dirname(self.db_path))
-        _ensure_exports_directory_exists()
+        _ensure_directories_exist()
         _save_all_modules()
+        _save_all_queries()
 
 class automation(ms_access_automation, file_export_automation):
     '''object that performs all the automations necessary to export the modules in an access database'''
