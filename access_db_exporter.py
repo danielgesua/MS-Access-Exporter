@@ -132,14 +132,31 @@ class file_export_automation():
 
     def run(self):
         '''takes all the modules in the python list of an ms_access_automation object and exports them as files'''
+        
+        def _ensure_exports_directory_exists():
+            '''if the exports directory doesn't exist, it creates it'''
 
-        for (file_name,module_type,code) in self._module_data:
-            if code is not None:
-                file_extension = self._file_ext_definitions[module_type]
-                directory_path = os.path.abspath(os.path.dirname(self.db_path))
-                full_name = os.path.join(directory_path, file_name + file_extension)
-                with open(file = full_name, mode = 'w') as file:
-                    file.write(code)
+            def _export_directory_exists():
+                '''checks to see if the git_exports directory exists and returns true or false.'''
+                self.export_directory_path = os.path.join(project_directory_path,'git_exports')
+                return os.path.exists(path = self.export_directory_path)
+
+            if not _export_directory_exists():
+                os.mkdir(path = self.export_directory_path)
+
+        def _save_all_modules():
+            '''saves all the modules in with the correct extension in the exports directory'''
+
+            for (file_name,module_type,code) in self._module_data:
+                if code is not None:
+                    file_extension = self._file_ext_definitions[module_type]
+                    full_name = os.path.join(self.export_directory_path, file_name + file_extension)
+                    with open(file = full_name, mode = 'w') as file:
+                        file.write(code)
+
+        project_directory_path = os.path.abspath(os.path.dirname(self.db_path))
+        _ensure_exports_directory_exists()
+        _save_all_modules()
 
 class automation(ms_access_automation, file_export_automation):
     '''object that performs all the automations necessary to export the modules in an access database'''
