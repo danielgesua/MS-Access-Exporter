@@ -1,5 +1,8 @@
 import win32com.client
 import os
+import tkinter
+from tkinter.filedialog import askopenfilename
+from tkinter.messagebox import askyesno
 
 class ms_access_automation():
     '''object that uses COM to communicate with MS Access to get all the code from its modules and tabulate it in a python list.'''
@@ -145,8 +148,9 @@ class ms_access_automation():
         self._query_data = []
 
     def __del__(self):
-        self.ac.CloseCurrentDatabase()
-        self.ac.Quit()
+        if self.ac is not None:
+            self.ac.CloseCurrentDatabase()
+            self.ac.Quit()
 
 class file_export_automation():
     '''object that can take the python list of module data from an ms_access automation and export each module as a file'''
@@ -217,17 +221,91 @@ class file_export_automation():
         _save_all_modules()
         _save_all_queries()
 
-class automation(ms_access_automation, file_export_automation):
+class gui():
+
+    def _file_is_valid(self):
+        '''Checks to see if the file exists and is of the right extension.'''
+
+        # If the file exists and is of appropriate extension then return true otherwise false
+        if os.path.exists(self.db_path):
+            response = (os.path.splitext(self.db_path)[1] in ['.accdb'])
+        else:
+            response = False
+
+        return response 
+
+    def ask_for_db_path(self):
+        '''asks the user for a db path, checks for valid path, if it isn't prompts for retry'''
+
+        def _show_file_dialog_to_get_db_path():
+            '''displays the file dialog that gets the database's path'''
+            self.db_path = askopenfilename(
+                parent = self.window,
+                title = 'Pick MS Access database to export.',
+                filetypes = [('MS Office Databases', '*.accdb',)]
+                )
+
+        def _confirm_if_user_wants_to_retry():
+            '''gets user confirmation to retry the file selection'''
+            
+            nonlocal retry
+
+            user_prompt = 'The file "' + self.db_path + '" is not valid. ' if self.db_path != '' else 'No file selected. '
+            user_prompt += 'Would you like to try again?'
+            msgbox_icon = 'warning' if self.db_path == '' else 'error'
+            retry = askyesno(
+                parent = self.window,
+                title = 'Invalid file.',
+                message = user_prompt,
+                icon = msgbox_icon
+            )
+
+        def _create_main_window():
+            '''creates the main window obj and hides it'''
+            self.window = tkinter.Tk()
+            self.window.withdraw()
+    
+        # Create the main GUI window
+        _create_main_window()
+
+        # No need to retry if we get it right the first time.
+        retry = False
+
+        # Show a file dialog to the user so they can pick an accdb.
+        _show_file_dialog_to_get_db_path()
+        
+        # If the file is not valid confirm if the user would like to try their choice again.
+        if not self._file_is_valid(): _confirm_if_user_wants_to_retry()
+
+        # If the file was valid or the user wishes to try again, then return to the begining of this routine.
+        if retry: self.ask_for_db_path()    
+
+    def __init__(self):
+        self.window = None
+
+    def __del__(self):
+        if self.window is not None: self.window.destroy()
+
+class automation(ms_access_automation, file_export_automation, gui):
     '''object that performs all the automations necessary to export the modules in an access database'''
 
-    def __init__(self,db_path):
-        self.db_path = db_path
+    def __init__(self,db_path = ''):
         ms_access_automation.__init__(self)
         file_export_automation.__init__(self)
-
+        gui.__init__(self)
+        self.db_path = db_path
+        if not self._file_is_valid(): self.ask_for_db_path()
+        
     def run(self):
-        ms_access_automation.run(self)
-        file_export_automation.run(self)
+        if a._file_is_valid():
+            ms_access_automation.run(self)
+            file_export_automation.run(self)
+        else:
+            print('File was invalid! Export aborted.')
 
-a = automation(r'C:\Test.accdb')
+    def __del__(self):
+        ms_access_automation.__del__(self)
+        gui.__del__(self)
+
+a = automation()
 a.run()
