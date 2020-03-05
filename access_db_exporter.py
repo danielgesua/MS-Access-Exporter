@@ -1,4 +1,5 @@
 import win32com.client
+import os
 
 class ms_access_automation():
     '''object that uses COM to communicate with MS Access to get all the code from its modules and tabulate it in a python list.'''
@@ -110,7 +111,7 @@ class ms_access_automation():
         _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
         if displaying_prompts: _display_prompts()
 
-    def __init__(self, db_path):
+    def __init__(self):
 
         #Instance variables
         self.ac = None
@@ -118,11 +119,39 @@ class ms_access_automation():
         self._form_names = None
         self._form_modules = None
         self._module_data=[]
-        self.db_path = db_path
 
     def __del__(self):
         self.ac.CloseCurrentDatabase()
         self.ac.Quit()
 
-a = ms_access_automation(r'C:\Test.accdb')
+class file_export_automation():
+    '''object that can take the python list of module data from an ms_access automation and export each module as a file'''
+
+    def __init__(self):
+        self._file_ext_definitions = ['.bas','.cls','.cls']
+
+    def run(self):
+        '''takes all the modules in the python list of an ms_access_automation object and exports them as files'''
+
+        for (file_name,module_type,code) in self._module_data:
+            if code is not None:
+                file_extension = self._file_ext_definitions[module_type]
+                directory_path = os.path.abspath(os.path.dirname(self.db_path))
+                full_name = os.path.join(directory_path, file_name + file_extension)
+                with open(file = full_name, mode = 'w') as file:
+                    file.write(code)
+
+class automation(ms_access_automation, file_export_automation):
+    '''object that performs all the automations necessary to export the modules in an access database'''
+
+    def __init__(self,db_path):
+        self.db_path = db_path
+        ms_access_automation.__init__(self)
+        file_export_automation.__init__(self)
+
+    def run(self):
+        ms_access_automation.run(self)
+        file_export_automation.run(self)
+
+a = automation(r'C:\Test.accdb')
 a.run()
