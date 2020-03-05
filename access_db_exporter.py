@@ -1,5 +1,6 @@
 import win32com.client
 import os
+import sys
 import tkinter
 from tkinter.filedialog import askopenfilename
 from tkinter.messagebox import askyesno
@@ -289,23 +290,40 @@ class gui():
 class automation(ms_access_automation, file_export_automation, gui):
     '''object that performs all the automations necessary to export the modules in an access database'''
 
-    def __init__(self,db_path = ''):
+    def __init__(self):
         ms_access_automation.__init__(self)
         file_export_automation.__init__(self)
         gui.__init__(self)
-        self.db_path = db_path
-        if not self._file_is_valid(): self.ask_for_db_path()
-        
-    def run(self):
-        if a._file_is_valid():
+                
+    def run(self, db_path = ''):
+
+        def _perform_first_check():
+            '''performs a first round of check to see if the path is valid and otherwise requests a path using the file dialog'''
+            if not self._file_is_valid():
+                if db_path != '': print('Inputted file path of "' + db_path + '" is invalid! Please choose a valid .accdb or cancel.')
+                self.ask_for_db_path()
+
+        def _run():
+            '''Uses the inputted parameters to run the automation'''
+
             ms_access_automation.run(self)
             file_export_automation.run(self)
-        else:
+
+        self.db_path = db_path
+
+        _perform_first_check()
+
+        if not self._file_is_valid():
             print('File was invalid! Export aborted.')
+        else:
+            _run(self)
 
     def __del__(self):
         ms_access_automation.__del__(self)
         gui.__del__(self)
 
 a = automation()
-a.run()
+ 
+file_path = sys.argv[1] if len(sys.argv) > 1 else ''
+a.run(file_path)
+
