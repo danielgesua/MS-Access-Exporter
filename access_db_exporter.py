@@ -1,6 +1,7 @@
 import win32com.client
 
-class automation():
+class ms_access_automation():
+    '''object that uses COM to communicate with MS Access to get all the code from its modules and tabulate it in a python list.'''
 
     @property
     def module_names(self):
@@ -83,7 +84,7 @@ class automation():
                     module_type = 2
                 name = _corrected_object_name(obj_name)
                 self._module_data += [(name,module_type,code)]
-              
+            
             #for each module in the list, fetch the lines of code and add it to the list of tuples alongside the name
             for name in names_list:
                 if displaying_prompts: print('Mining "' + name + '" for data...', end=" ")
@@ -109,7 +110,7 @@ class automation():
         _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
         if displaying_prompts: _display_prompts()
 
-    def __init__(self,db_path):
+    def __init__(self, db_path):
 
         #Instance variables
         self.ac = None
@@ -117,12 +118,11 @@ class automation():
         self._form_names = None
         self._form_modules = None
         self._module_data=[]
-        self.db_path=db_path
+        self.db_path = db_path
 
     def __del__(self):
         self.ac.CloseCurrentDatabase()
         self.ac.Quit()
-        
 
-a=automation(r'C:\Test.accdb')
+a = ms_access_automation(r'C:\Test.accdb')
 a.run()
