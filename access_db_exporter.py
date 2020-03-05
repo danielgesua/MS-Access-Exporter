@@ -316,7 +316,7 @@ class automation(ms_access_automation, file_export_automation, gui):
         if not self._file_is_valid():
             print('File was invalid! Export aborted.')
         else:
-            _run(self)
+            _run()
 
     def __del__(self):
         ms_access_automation.__del__(self)
