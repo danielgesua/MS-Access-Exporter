@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "About to run exporter..."
+cd "C:\path\to\your\distributable\exe\access_db_exporter\directory\\"
+./access_db_exporter.exe "C:\path\to\your\MS\Access\file\My_MS_Access_file.accdb"
+echo "Done with automation. Adding new files to git repo staging area..."
+cd "C:\path\to\your\git\repo\\"
+git add git_exports\*
+exit 0
