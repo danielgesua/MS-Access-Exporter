@@ -2,6 +2,7 @@ import win32com.client
 import os
 import sys
 import tkinter
+import json
 from enum import IntFlag
 from tkinter.filedialog import askopenfilename
 from tkinter.messagebox import askyesno
@@ -108,7 +109,6 @@ class ms_access_automation():
 
                     return field_obj_data
 
-
                 tabledef_obj_data = {
                     'name' : table_name,
                     'fields' : []
@@ -209,10 +209,10 @@ class ms_access_automation():
 
         _open_access_file()
         _get_all_table_obj_data()
-        # _get_all_module_obj_data(self.module_names,self.modules,is_form=False)
-        # _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
-        # _get_all_query_obj_data()
-        # if displaying_prompts: _display_prompts()
+        _get_all_module_obj_data(self.module_names,self.modules,is_form=False)
+        _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
+        _get_all_query_obj_data()
+        if displaying_prompts: _display_prompts()
 
     def __init__(self):
 
@@ -264,6 +264,16 @@ class file_export_automation():
                 # If the directory doesn't exist then create it.
                 if not _export_directory_exists(): os.mkdir(path = self._export_directory_path)
 
+            def _ensure_tables_directory_exists():
+                '''If the tables subdirectory doesn't exist, this method creates it.'''
+
+                def _tables_directory_exists():
+                    '''Checks to see if the git_exports directory exists and returns true or false.'''
+                    self._tables_directory_path = os.path.join(self._export_directory_path,'tables')
+                    return os.path.exists(path = self._tables_directory_path)
+
+                if not _tables_directory_exists(): os.mkdir(path = self._tables_directory_path)
+
             def _ensure_modules_directory_exists():
                 '''If the modules subdirectory doesn't exist, this method creates it.'''
 
@@ -287,8 +297,22 @@ class file_export_automation():
                 if not _queries_directory_exists(): os.mkdir(path = self._queries_directory_path)
 
             _ensure_exports_directory_exists()
+            _ensure_tables_directory_exists()
             _ensure_modules_directory_exists()
             _ensure_queries_directory_exists()
+
+        def _save_all_tables():
+            '''Saves all the queries' SQL in text format in the queries sub directory of the exports directory.'''
+
+            # For each QueryDef in the Accdb.
+            for table in self._table_data:
+
+                # Build the fully qualified file name.
+                full_name = os.path.join(self._tables_directory_path,table["name"] + '.txt')
+                
+                 # Export the SQL code.
+                with open(file = full_name,mode = 'w') as file:
+                    file.write(json.dumps(table))
 
         def _save_all_modules():
             '''Saves all the modules with the correct extension in the modules sub directory of the exports directory.'''
@@ -324,6 +348,7 @@ class file_export_automation():
         _ensure_directories_exist()
         _save_all_modules()
         _save_all_queries()
+        _save_all_tables()
 
 class gui():
     '''Validating inputs and (if necessary) opening a file dialog to request a valid MS Access file.'''
