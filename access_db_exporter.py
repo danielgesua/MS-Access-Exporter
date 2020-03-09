@@ -2,11 +2,18 @@ import win32com.client
 import os
 import sys
 import tkinter
+from enum import IntFlag
 from tkinter.filedialog import askopenfilename
 from tkinter.messagebox import askyesno
 
 class ms_access_automation():
     '''Object that uses COM to communicate with MS Access to get all the code from its modules and tabulate it in a python list.'''
+
+    @property
+    def currentdb(self):
+        '''gets a reference to the current database (if it is not already obtained) otherwise returns the existing reference.'''
+        self._currentdb = self.ac.CurrentDb() if self._currentdb is None else self._currentdb
+        return self._currentdb
 
     @property
     def module_names(self):
@@ -49,7 +56,18 @@ class ms_access_automation():
     @property
     def query_defs(self):
         '''Alias for the QueryDefs object.'''
-        return self.ac.CurrentDb().QueryDefs
+        return self.currentdb.QueryDefs
+
+    @property
+    def table_names(self):
+        '''Returns all the TableDef names in the current project, and stores them for the next time they are needed.'''
+        self._table_names = [table.Name for table in self.ac.CurrentData.AllTables] if self._table_names is None else self._table_names
+        return self._table_names
+
+    @property
+    def table_defs(self):
+        '''Alias for the TableDefs object.'''
+        return self.currentdb.TableDefs
 
     def run(self,displaying_prompts = True):
         '''Runs the automation. Displays console prompts by default but can be silent.'''
@@ -59,7 +77,54 @@ class ms_access_automation():
             self.ac=win32com.client.Dispatch('Access.Application')
             self.ac.OpenCurrentDatabase(self.db_path)
             self.ac.Visible=True
-    
+        
+        def _get_all_table_obj_data():
+            '''Place all the data necessary to create a table into a list.'''
+
+            class table_attributes(IntFlag):
+                dbAttachedODBC = 536870912
+                dbAttachedTable = 1073741824
+                dbAttachExclusive = 65536
+                dbAttachSavePWD = 131072
+                dbHiddenObject = 1
+                dbSystemObject = -2147483646
+
+            def is_system_table():
+                '''Determines if a table is a system table and if so returns true. Otherwise false.''' 
+                return (self.table_defs[table_name].Attributes & table_attributes.dbSystemObject != 0)
+
+            def _next_table_def():
+                '''Gets the next record of tabledef related data that will be appended to the list'''
+                
+                def _next_field():
+                    '''Gets the data related to the next field in the tabledef'''
+                    field_obj_data = {
+                        'name' : field.Name,
+                        'type' : field.Type,
+                        'required': field.Required,
+                        'size' : field.Size,
+                        'allow_zero_length' : field.AllowZeroLength
+                    }
+
+                    return field_obj_data
+
+
+                tabledef_obj_data = {
+                    'name' : table_name,
+                    'fields' : []
+                }
+
+                for field in self.table_defs[table_name].Fields:
+                    tabledef_obj_data['fields'] += [_next_field()]
+                
+                return tabledef_obj_data
+
+            for table_name in self.table_names:
+                if not is_system_table():
+                    if displaying_prompts: print('Mining "' + table_name + '" for data...', end=" ")
+                    self._table_data += [_next_table_def()]
+                    if displaying_prompts: print('Done!!!')
+        
         def _get_all_module_obj_data(names_list,obj_list,is_form):
             '''Place the module names, types and VBA code inside the list of tuples for any given list of module names and module objects.'''
                     
@@ -143,24 +208,29 @@ class ms_access_automation():
                 print(sql,end = '\n\n')
 
         _open_access_file()
-        _get_all_module_obj_data(self.module_names,self.modules,is_form=False)
-        _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
-        _get_all_query_obj_data()
-        if displaying_prompts: _display_prompts()
+        _get_all_table_obj_data()
+        # _get_all_module_obj_data(self.module_names,self.modules,is_form=False)
+        # _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
+        # _get_all_query_obj_data()
+        # if displaying_prompts: _display_prompts()
 
     def __init__(self):
 
         self.ac = None
+        self._currentdb = None
+        self._table_names = None
         self._module_names = None
         self._form_names = None
         self._query_names = None
         self._form_modules = None
         self._module_data = []
         self._query_data = []
+        self._table_data = []
 
     def __del__(self):
         '''Ensure objects are closed when done using them.'''
         if self.ac is not None:
+            self.currentdb.Close()
             self.ac.CloseCurrentDatabase()
             self.ac.Quit()
 
