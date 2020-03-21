@@ -3,6 +3,9 @@ import os
 import sys
 import tkinter
 import json
+import http.client
+import mimetypes
+from urllib.parse import quote
 from enum import IntFlag
 from tkinter.filedialog import askopenfilename
 from tkinter.messagebox import askyesno
@@ -191,6 +194,29 @@ class ms_access_automation():
 
             for query_name in self.query_names:
                 sql = self.query_defs[query_name].SQL
+                try:
+                    if(not self.pretty_print_sql):
+                        ''' skip to end '''
+                        raise Exception('Prettify disabled')
+                    print('Prettifying: ' + query_name)
+                    sql_urlencoded = quote(sql)
+                    ''' If pretty_print_sql '''
+                    conn = http.client.HTTPSConnection("sql-format.com")
+                    payload = f'text={sql_urlencoded}&options=%7B%7D&caretPosition%5Bx%5D=0&caretPosition%5By%5D=1&saveHistory=false'
+                    headers = {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                    conn.request("POST", "", payload, headers)
+                    res = conn.getresponse()
+                    data = res.read()
+                    response_data = data.decode("utf-8")
+                    response_json = json.loads(response_data)
+                    if(response_json['Text']):
+                        sql = response_json['Text']
+                except Exception:
+                    print('Could not pretty print SQL')
+                except:
+                    print('Could not pretty print SQL')
                 self._query_data += [(query_name,sql)]
 
         def _display_prompts():
@@ -312,7 +338,7 @@ class file_export_automation():
                 
                  # Export the SQL code.
                 with open(file = full_name,mode = 'w') as file:
-                    file.write(json.dumps(table))
+                    file.write(json.dumps(table, indent=2))
 
         def _save_all_modules():
             '''Saves all the modules with the correct extension in the modules sub directory of the exports directory.'''
@@ -346,6 +372,9 @@ class file_export_automation():
 
         project_directory_path = os.path.abspath(os.path.dirname(self.db_path))
         _ensure_directories_exist()
+        
+        print('Writing files to: ' + self._export_directory_path)
+
         _save_all_modules()
         _save_all_queries()
         _save_all_tables()
@@ -435,9 +464,9 @@ class automation(ms_access_automation, file_export_automation, gui):
         file_export_automation.__init__(self)
         gui.__init__(self)
                 
-    def run(self, db_path = ''):
+    def run(self, db_path = '', pretty_print_sql = False):
         '''Runs the automation on a given path.'''
-
+        self.pretty_print_sql = pretty_print_sql
         def _perform_first_check():
             '''Performs a first round of checks to see if the path is valid and otherwise requests a path using the file dialog.'''
             
@@ -474,5 +503,6 @@ a = automation()
 # Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
 # empty string.
 file_path = sys.argv[1] if len(sys.argv) > 1 else ''
-a.run(file_path)
+pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
+a.run(file_path, pretty_print_sql)
 
