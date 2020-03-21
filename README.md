@@ -7,9 +7,16 @@ queries and other objects as *.bas, *.cls and *.txt files.
 # Requirements
 
 Windows:
-```py -m pip install -r requirements.txt```
+
+```
+py -m pip install -r requirements.txt
+```
+
 Linux/OS X:
-```pip install -r requirements.txt```
+
+```
+pip install -r requirements.txt
+```
 
 # Output
 
@@ -21,7 +28,9 @@ Tables export as JSON dumps, and so can be read as clean syntax.
 
 Queries export as MSSQL and optionally can be prettified using sql-format.com by passing a second "True" parameter like so:
 
-```py access_db_exporter.py path/to/access.accdb True```
+```
+py access_db_exporter.py path/to/access.accdb True
+```
 
 ## Modules
 
@@ -36,7 +45,9 @@ Modules are stored as cls/bas files which are plaintext and can be easily compar
 
 ## With all arguments including prettification of queries
 
-```py access_db_exporter.py path/to/access.accdb True```
+```
+py access_db_exporter.py path/to/access.accdb True
+```
 
 ## Via Git Pre-Commit Hooks
 
