@@ -80,9 +80,11 @@ class ms_access_automation():
             '''Opens the Access application object to the database of interest, and makes it visible'''
             self.ac=win32com.client.Dispatch('Access.Application')
             self.ac.OpenCurrentDatabase(self.db_path)
+            self.ac.UserControl=False
             for form in self.forms:
                 self.ac.DoCmd.Close(2,form.Name)
-            # self.ac.Visible=True
+            self.ac.Visible=True
+
         
         def _get_all_table_obj_data():
             '''Place all the data necessary to create a table into a list.'''
