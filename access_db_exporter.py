@@ -188,7 +188,7 @@ class ms_access_automation():
                 if displaying_prompts: print('Mining "' + name + '" for data...', end=" ")
                 _open_obj(name)
                 _mine_the_object_data(name)
-                _close_obj(name)
+                if not from_cmd_line: _close_obj(name)
                 if displaying_prompts: print('Done!!!')
 
             #if displaying prompts then add one new line between the prompts of this portion and the next.
@@ -508,6 +508,7 @@ try:
     
     # Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
     # empty string.
+    from_cmd_line= True if len(sys.argv) > 1 else False
     file_path = sys.argv[1] if len(sys.argv) > 1 else ''
     pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
     a.run(file_path, pretty_print_sql)
