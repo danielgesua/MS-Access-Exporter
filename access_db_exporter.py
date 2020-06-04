@@ -261,9 +261,11 @@ class ms_access_automation():
     def __del__(self):
         '''Ensure objects are closed when done using them.'''
         if self.ac is not None:
-            self.currentdb.Close()
-            self.ac.CloseCurrentDatabase()
-            self.ac.Quit()
+            try:
+                self.currentdb.Close()
+                self.ac.CloseCurrentDatabase()
+            finally:
+                self.ac.Quit()
 
 class file_export_automation():
     '''Object that can take the python list of module/query data from an ms_access automation and export each document as a file.'''
@@ -512,9 +514,10 @@ try:
     file_path = sys.argv[1] if len(sys.argv) > 1 else ''
     pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
     a.run(file_path, pretty_print_sql)
+    del(a)
 except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     traceback.print_exception(exc_type, exc_value, exc_traceback)
 finally:
-    wait_for_user = sys.argv[3] == "True" if len(sys.argv) > 3 else False
+    wait_for_user = sys.argv[3] == 'True' if len(sys.argv) > 3 else False
     if wait_for_user: input("Press enter to continue...")
