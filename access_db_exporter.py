@@ -5,6 +5,7 @@ import tkinter
 import json
 import http.client
 import mimetypes
+import traceback
 from urllib.parse import quote
 from enum import IntFlag
 from tkinter.filedialog import askopenfilename
@@ -502,11 +503,17 @@ class automation(ms_access_automation, file_export_automation, gui):
         ms_access_automation.__del__(self)
         gui.__del__(self)
 
-a = automation()
- 
-# Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
-# empty string.
-file_path = sys.argv[1] if len(sys.argv) > 1 else ''
-pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
-a.run(file_path, pretty_print_sql)
-
+try:
+    a = automation()
+    
+    # Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
+    # empty string.
+    file_path = sys.argv[1] if len(sys.argv) > 1 else ''
+    pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
+    a.run(file_path, pretty_print_sql)
+except Exception:
+    exc_type, exc_value, exc_traceback = sys.exc_info()
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+finally:
+    wait_for_user = sys.argv[3] == "True" if len(sys.argv) > 3 else False
+    if wait_for_user: input("Press enter to continue...")
