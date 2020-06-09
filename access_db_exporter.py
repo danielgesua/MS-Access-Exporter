@@ -170,15 +170,23 @@ class DiffWorthyExporter(ComOpsMixin, file_export_automation, GuiMixin):
         ComOpsMixin.__del__(self)
         GuiMixin.__del__(self)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        '''performs all the necessary cleanup actions and closes the files.'''
+        ComOpsMixin.__del__(self)
+        GuiMixin.__del__(self)
 try:
-    DWE = DiffWorthyExporter()
+    with DiffWorthyExporter() as DWE:
     
-    # Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
-    # empty string.
-    from_cmd_line= True if len(sys.argv) > 1 else False
-    file_path = sys.argv[1] if len(sys.argv) > 1 else ''
-    pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
-    DWE.run(file_path, pretty_print_sql)
+        # Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
+        # empty string.
+        from_cmd_line= True if len(sys.argv) > 1 else False
+        file_path = sys.argv[1] if len(sys.argv) > 1 else ''
+        pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
+        DWE.run(file_path, pretty_print_sql)
+
 except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     traceback.print_exception(exc_type, exc_value, exc_traceback)
