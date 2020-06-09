@@ -179,11 +179,11 @@ try:
     file_path = sys.argv[1] if len(sys.argv) > 1 else ''
     pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
     DWE.run(file_path, pretty_print_sql)
-    del(DWE)
 except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     traceback.print_exception(exc_type, exc_value, exc_traceback)
 finally:
+    if DWE is not None: del(DWE)
     wait_for_user = sys.argv[3] == 'True' if len(sys.argv) > 3 else False
     if wait_for_user: input("Press enter to continue...")
 
