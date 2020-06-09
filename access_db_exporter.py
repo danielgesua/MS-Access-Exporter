@@ -1,4 +1,3 @@
-import win32com.client
 import os
 import sys
 import json
@@ -6,264 +5,8 @@ import http.client
 import mimetypes
 import traceback
 from urllib.parse import quote
-from enum import IntFlag
-from gui.gui import GuiMixin
-
-class ms_access_automation():
-    '''Object that uses COM to communicate with MS Access to get all the code from its modules and tabulate it in a python list.'''
-
-    @property
-    def currentdb(self):
-        '''gets a reference to the current database (if it is not already obtained) otherwise returns the existing reference.'''
-        self._currentdb = self.ac.CurrentDb() if self._currentdb is None else self._currentdb
-        return self._currentdb
-
-    @property
-    def module_names(self):
-        '''Returns all the module names in the current project, and stores them for the next time they are needed.'''
-        self._module_names = [module.Name for module in self.ac.CurrentProject.AllModules] if self._module_names is None else self._module_names
-        return self._module_names
-
-    @property
-    def modules(self):
-        '''Alias for the modules object.'''
-        return self.ac.Modules
-
-    @property
-    def form_names(self):
-        '''Returns all the form names in the current project, and stores them for the next time they are needed.'''
-        self._form_names = [form.Name for form in self.ac.CurrentProject.AllForms] if self._form_names is None else self._form_names
-        return self._form_names
-
-    @property
-    def forms(self):
-        '''Alias for the forms object.'''
-        return self.ac.Forms
-
-    @property
-    def form_modules(self):
-        '''This wrapper alows us to use the form modules with the same syntax as regular modules.'''
-        
-        def p_form_modules(index):
-            '''Returns the Module object for any form object'''
-            return self.forms(index).Module
-        
-        return p_form_modules
-
-    @property
-    def query_names(self):
-        '''Returns all the QueryDef names in the current project, and stores them for the next time they are needed.'''
-        self._query_names = [query.Name for query in self.ac.CurrentData.AllQueries] if self._query_names is None else self._query_names
-        return self._query_names
-
-    @property
-    def query_defs(self):
-        '''Alias for the QueryDefs object.'''
-        return self.currentdb.QueryDefs
-
-    @property
-    def table_names(self):
-        '''Returns all the TableDef names in the current project, and stores them for the next time they are needed.'''
-        self._table_names = [table.Name for table in self.ac.CurrentData.AllTables] if self._table_names is None else self._table_names
-        return self._table_names
-
-    @property
-    def table_defs(self):
-        '''Alias for the TableDefs object.'''
-        return self.currentdb.TableDefs
-
-    def run(self,displaying_prompts = True):
-        '''Runs the automation. Displays console prompts by default but can be silent.'''
-        
-        def _open_access_file():
-            '''Opens the Access application object to the database of interest, and makes it visible'''
-            self.ac=win32com.client.Dispatch('Access.Application')
-            self.ac.OpenCurrentDatabase(self.db_path)
-            self.ac.UserControl=False
-            for form in self.forms:
-                self.ac.DoCmd.Close(2,form.Name)
-            self.ac.Visible=True
-
-        
-        def _get_all_table_obj_data():
-            '''Place all the data necessary to create a table into a list.'''
-
-            class table_attributes(IntFlag):
-                dbAttachedODBC = 536870912
-                dbAttachedTable = 1073741824
-                dbAttachExclusive = 65536
-                dbAttachSavePWD = 131072
-                dbHiddenObject = 1
-                dbSystemObject = -2147483646
-
-            def is_system_table():
-                '''Determines if a table is a system table and if so returns true. Otherwise false.''' 
-                return (self.table_defs[table_name].Attributes & table_attributes.dbSystemObject != 0)
-
-            def _next_table_def():
-                '''Gets the next record of tabledef related data that will be appended to the list'''
-                
-                def _next_field():
-                    '''Gets the data related to the next field in the tabledef'''
-                    field_obj_data = {
-                        'name' : field.Name,
-                        'type' : field.Type,
-                        'required': field.Required,
-                        'size' : field.Size,
-                        'allow_zero_length' : field.AllowZeroLength
-                    }
-
-                    return field_obj_data
-
-                tabledef_obj_data = {
-                    'name' : table_name,
-                    'fields' : []
-                }
-
-                for field in self.table_defs[table_name].Fields:
-                    tabledef_obj_data['fields'] += [_next_field()]
-                
-                return tabledef_obj_data
-
-            for table_name in self.table_names:
-                if not is_system_table():
-                    if displaying_prompts: print('Mining "' + table_name + '" for data...', end=" ")
-                    self._table_data += [_next_table_def()]
-                    if displaying_prompts: print('Done!!!')
-        
-        def _get_all_module_obj_data(names_list,obj_list,is_form):
-            '''Place the module names, types and VBA code inside the list of tuples for any given list of module names and module objects.'''
-                    
-            def _open_obj(obj_name):
-                '''Selects and runs the "open" method on the object based on its type.'''
-
-                #get the appropriate opening routine then pass the right parameters based on object type
-                open_method = self.ac.DoCmd.OpenForm if is_form else self.ac.DoCmd.OpenModule
-                open_method(obj_name,1) if is_form else open_method(obj_name)
-            
-            def _close_obj(obj_name):
-                '''Closes the object based on its type.'''
-
-                obj_type = 2 if is_form else 5
-                if is_form:
-                    self.ac.DoCmd.RunCommand(58)
-                else:
-                    self.ac.DoCmd.Close(obj_type,obj_name,2)            
-
-            def _mine_the_object_data(obj_name):
-                '''Gets the necessary data from the object.'''
-
-                def _has_or_is_module(obj_name):
-                    '''Returns the value of HasModule for form objects or true for module objects.'''
-                    return self.forms(obj_name).HasModule if is_form else True
-
-                def _get_module_code(module):
-                    '''Obtains the code contained inside a module and returns it as a string.'''
-                    return module.Lines(1,module.CountOfLines)
-
-                def _get_module_type(module):
-                    '''Obtains the type of module and returns the int that represents it.'''
-                    return 2 if (is_form and _has_or_is_module(obj_name)) else module.Type
-
-                def _corrected_object_name(name):
-                    '''Corrects the name of the module based on type. (Form modules are always prefaced by "Form_")'''
-                    return 'Form_' + name if is_form else name
-                
-                # If the object is a module or is a for with a module then get its code and type.
-                if _has_or_is_module(obj_name):
-                    code = _get_module_code(obj_list(obj_name))
-                    module_type = _get_module_type(obj_list(obj_name))  
-                else:
-                    code = None
-                    module_type = 2
-
-                # Correct the name if it is a form module and append the data to the list.
-                name = _corrected_object_name(obj_name)
-                self._module_data += [(name,module_type,code)]
-            
-            # For each module in the list, fetch the VBA code, and module type, and add the data to the list of tuples alongside the name.
-            for name in names_list:
-                if displaying_prompts: print('Mining "' + name + '" for data...', end=" ")
-                _open_obj(name)
-                _mine_the_object_data(name)
-                if not from_cmd_line: _close_obj(name)
-                if displaying_prompts: print('Done!!!')
-
-            #if displaying prompts then add one new line between the prompts of this portion and the next.
-            if displaying_prompts: print('\n',end='')
-
-        def _get_all_query_obj_data():
-            '''Place all query names, and SQL inside a list of tuples.'''
-
-            for query_name in self.query_names:
-                sql = self.query_defs[query_name].SQL
-                try:
-                    if(not self.pretty_print_sql):
-                        ''' skip to end '''
-                        raise Exception('Prettify disabled')
-                    print('Prettifying: ' + query_name)
-                    sql_urlencoded = quote(sql)
-                    ''' If pretty_print_sql '''
-                    conn = http.client.HTTPSConnection("sql-format.com")
-                    payload = f'text={sql_urlencoded}&options=%7B%7D&caretPosition%5Bx%5D=0&caretPosition%5By%5D=1&saveHistory=false'
-                    headers = {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    }
-                    conn.request("POST", "", payload, headers)
-                    res = conn.getresponse()
-                    data = res.read()
-                    response_data = data.decode("utf-8")
-                    response_json = json.loads(response_data)
-                    if(response_json['Text']):
-                        sql = response_json['Text']
-                except Exception:
-                    print('Could not pretty print SQL')
-                except:
-                    print('Could not pretty print SQL')
-                self._query_data += [(query_name,sql)]
-
-        def _display_prompts():
-            '''Prints console prompts to show the developer what was mined.'''
-
-            for module_num,(name,module_type,code) in enumerate(self._module_data):
-                print('Module #' + str(module_num + 1) + ': ' + name)
-                print('Type: ' + str(module_type))
-                code = 'Code: No code.' if code is None else 'Code: Obtained!'
-                print(code,end = '\n\n')
-
-            for query_index, query_name in enumerate(self.query_names): 
-                print('Query #' + str(query_index + 1) + ': ' + query_name)
-                sql = 'SQL: Empty QueryDef.' if self.query_defs[query_name].SQL is None else 'SQL: Obtained!'
-                print(sql,end = '\n\n')
-
-        _open_access_file()
-        _get_all_table_obj_data()
-        _get_all_module_obj_data(self.module_names,self.modules,is_form=False)
-        _get_all_module_obj_data(self.form_names,self.form_modules,is_form=True)
-        _get_all_query_obj_data()
-        if displaying_prompts: _display_prompts()
-
-    def __init__(self):
-
-        self.ac = None
-        self._currentdb = None
-        self._table_names = None
-        self._module_names = None
-        self._form_names = None
-        self._query_names = None
-        self._form_modules = None
-        self._module_data = []
-        self._query_data = []
-        self._table_data = []
-
-    def __del__(self):
-        '''Ensure objects are closed when done using them.'''
-        if self.ac is not None:
-            try:
-                self.currentdb.Close()
-                self.ac.CloseCurrentDatabase()
-            finally:
-                self.ac.Quit()
+from mixins.gui import GuiMixin
+from mixins.com_ops import ComOpsMixin
 
 class file_export_automation():
     '''Object that can take the python list of module/query data from an ms_access automation and export each document as a file.'''
@@ -279,7 +22,7 @@ class file_export_automation():
         self._file_ext_definitions = ['.bas','.cls','.cls']
 
     def run(self):
-        '''Takes all the modules in the python list of an ms_access_automation object and exports them as files.'''
+        '''Takes all the modules in the python list of an ComOpsMixin object and exports them as files.'''
         
         def _ensure_directories_exist():
             '''Creates all the necessary export directories and subdirectories if they do not exist.'''
@@ -384,12 +127,12 @@ class file_export_automation():
         _save_all_queries()
         _save_all_tables()
 
-class DiffWorthyExporter(ms_access_automation, file_export_automation, GuiMixin):
+class DiffWorthyExporter(ComOpsMixin, file_export_automation, GuiMixin):
     '''Object that performs all the automations necessary to export the modules in an access database.'''
 
     def __init__(self):
         '''Run all the base object initiators in the appropriate order.'''
-        ms_access_automation.__init__(self)
+        ComOpsMixin.__init__(self)
         file_export_automation.__init__(self)
         GuiMixin.__init__(self)
                 
@@ -407,7 +150,7 @@ class DiffWorthyExporter(ms_access_automation, file_export_automation, GuiMixin)
         def _run():
             '''Uses the inputted parameters to run the automation'''
 
-            ms_access_automation.run(self)
+            ComOpsMixin.run(self)
             file_export_automation.run(self)
 
         self.db_path = db_path
@@ -424,7 +167,7 @@ class DiffWorthyExporter(ms_access_automation, file_export_automation, GuiMixin)
 
     def __del__(self):
         '''Performs all the neccesary cleanup processes and closes the files.'''
-        ms_access_automation.__del__(self)
+        ComOpsMixin.__del__(self)
         GuiMixin.__del__(self)
 
 try:
