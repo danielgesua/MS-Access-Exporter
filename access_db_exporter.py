@@ -384,7 +384,7 @@ class file_export_automation():
         _save_all_queries()
         _save_all_tables()
 
-class automation(ms_access_automation, file_export_automation, GuiMixin):
+class DiffWorthyExporter(ms_access_automation, file_export_automation, GuiMixin):
     '''Object that performs all the automations necessary to export the modules in an access database.'''
 
     def __init__(self):
@@ -428,18 +428,19 @@ class automation(ms_access_automation, file_export_automation, GuiMixin):
         GuiMixin.__del__(self)
 
 try:
-    a = automation()
+    DWE = DiffWorthyExporter()
     
     # Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
     # empty string.
     from_cmd_line= True if len(sys.argv) > 1 else False
     file_path = sys.argv[1] if len(sys.argv) > 1 else ''
     pretty_print_sql = sys.argv[2] == 'True' if len(sys.argv) > 2 else False
-    a.run(file_path, pretty_print_sql)
-    del(a)
+    DWE.run(file_path, pretty_print_sql)
+    del(DWE)
 except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     traceback.print_exception(exc_type, exc_value, exc_traceback)
 finally:
     wait_for_user = sys.argv[3] == 'True' if len(sys.argv) > 3 else False
     if wait_for_user: input("Press enter to continue...")
+
