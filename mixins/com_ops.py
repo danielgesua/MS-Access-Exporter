@@ -212,8 +212,6 @@ class ComOpsMixin(ABC):
                         sql = response_json['Text']
                 except Exception:
                     print('Could not pretty print SQL')
-                except:
-                    print('Could not pretty print SQL')
                 self._query_data += [(query_name,sql)]
 
         def _display_prompts():
