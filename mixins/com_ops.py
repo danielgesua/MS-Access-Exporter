@@ -247,15 +247,3 @@ class ComOpsMixin(ABC):
         self._module_data = []
         self._query_data = []
         self._table_data = []
-
-    def __del__(self):
-        '''Ensure objects are closed when done using them.'''
-        if self.ac is not None:
-            try:
-                self.currentdb.Close()
-                self.ac.CloseCurrentDatabase()
-            except Exception:
-                exc_type, exc_value, exc_traceback = sys.exc_info()
-                traceback.print_exception(exc_type, exc_value, exc_traceback)
-            finally:
-                if self.ac is not None: self.ac.Quit()

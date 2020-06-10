@@ -75,7 +75,3 @@ class GuiMixin(ABC):
 
     def __init__(self):
         self.window = None
-
-    def __del__(self):
-        '''Closes the window when the program ends.'''
-        if self.window is not None: self.window.destroy()

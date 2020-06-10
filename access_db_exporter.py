@@ -170,11 +170,22 @@ class DiffWorthyExporter(ComOpsMixin, file_export_automation, GuiMixin):
 
     def __exit__(self, exc_type, exc_value, traceback):
         '''performs all the necessary cleanup actions and closes the files.'''
-        ComOpsMixin.__del__(self)
-        GuiMixin.__del__(self)
+        if hasattr(self,"ac"):
+            if self.ac is not None:
+                try:
+                    self.currentdb.Close()
+                    self.ac.CloseCurrentDatabase()
+                except Exception:
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    traceback.print_exception(exc_type, exc_value, exc_traceback)
+                finally:
+                    if self.ac is not None: 
+                        self.ac.Quit()
+                        self.ac=None
+        if hasattr(self,"window"):
+            if self.window is not None: self.window.destroy()
 try:
     with DiffWorthyExporter() as DWE:
-    
         # Get the MS Access file's fully qualified path from command line argument (if it was provided). Otherwise pass in an
         # empty string.
         from_cmd_line= True if len(sys.argv) > 1 else False
