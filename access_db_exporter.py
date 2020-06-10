@@ -165,11 +165,6 @@ class DiffWorthyExporter(ComOpsMixin, file_export_automation, GuiMixin):
         else:
             _run()
 
-    def __del__(self):
-        '''Performs all the neccesary cleanup processes and closes the files.'''
-        ComOpsMixin.__del__(self)
-        GuiMixin.__del__(self)
-
     def __enter__(self):
         return self
 
@@ -191,7 +186,6 @@ except Exception:
     exc_type, exc_value, exc_traceback = sys.exc_info()
     traceback.print_exception(exc_type, exc_value, exc_traceback)
 finally:
-    if DWE is not None: del(DWE)
     wait_for_user = sys.argv[3] == 'True' if len(sys.argv) > 3 else False
     if wait_for_user: input("Press enter to continue...")
 

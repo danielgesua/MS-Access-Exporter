@@ -260,4 +260,4 @@ class ComOpsMixin(ABC):
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exception(exc_type, exc_value, exc_traceback)
             finally:
-                self.ac.Quit()
+                if self.ac is not None: self.ac.Quit()
