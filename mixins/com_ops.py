@@ -1,5 +1,6 @@
 import win32com.client
 from enum import IntFlag
+import traceback
 from abc import ABC
 
 class ComOpsMixin(ABC):
@@ -255,5 +256,8 @@ class ComOpsMixin(ABC):
             try:
                 self.currentdb.Close()
                 self.ac.CloseCurrentDatabase()
+            except Exception:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback)
             finally:
                 self.ac.Quit()
